@@ -106,26 +106,30 @@ export default function PriceTracker() {
     catch (e: unknown) { alert(e instanceof Error ? e.message : 'Delete failed'); }
   }
 
-  // Build chart data: show band (area) for actual, line for forecast + MA7
+  // Build chart data
   const chartData = forecast?.points.map(p => ({
     date: fmtDate(p.date),
     ...(p.type === 'actual' ? {
-      band:        [p.low ?? 0, p.high ?? 0],   // for Area range
-      low:         p.low,
-      high:        p.high,
-      mid:         p.mid,
-      ma7:         p.ma7,
+      low:  p.low,
+      high: p.high,
+      mid:  p.mid,
+      ma7:  p.ma7,
     } : {
-      forecastMid: p.forecastMid,
+      forecastMid:      p.forecastMid,
+      forecastBandLow:  p.forecastBandLow,
+      forecastBandHigh: p.forecastBandHigh,
     }),
   })) ?? [];
 
-  // stitch last actual → first forecast
+  // Stitch last actual → first forecast so lines connect
   const lastActualIdx = forecast?.points.findLastIndex(p => p.type === 'actual') ?? -1;
-  if (lastActualIdx >= 0 && lastActualIdx + 1 < (chartData.length)) {
+  if (lastActualIdx >= 0 && lastActualIdx + 1 < chartData.length) {
+    const lastMid = (chartData[lastActualIdx] as { mid?: number }).mid;
     chartData[lastActualIdx + 1] = {
       ...chartData[lastActualIdx + 1],
-      forecastMid: (chartData[lastActualIdx] as { mid?: number }).mid,
+      forecastMid:      lastMid,
+      forecastBandLow:  lastMid,
+      forecastBandHigh: lastMid,
     };
   }
 
@@ -274,29 +278,51 @@ export default function PriceTracker() {
 
           {/* Chart */}
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
-            <h3 className="text-sm font-bold text-gray-700 mb-1">Price History & Forecast</h3>
-            <p className="text-xs text-gray-400 mb-3">Green band = market range · Brown = midpoint · Orange = MA7 · Dashed = forecast</p>
-            <ResponsiveContainer width="100%" height={240}>
+            <div className="flex items-start justify-between gap-2 mb-1">
+              <h3 className="text-sm font-bold text-gray-700">Price History & Forecast</h3>
+              {forecast?.modelName && forecast.modelName !== '-' && (
+                <span className="text-xs bg-mushroom-100 text-mushroom-700 font-semibold px-2 py-0.5 rounded-full flex-shrink-0">
+                  {forecast.modelName}
+                </span>
+              )}
+            </div>
+            <p className="text-xs text-gray-400 mb-3">
+              Green band = market range · Brown = mid · Orange = MA7 · Dashed = forecast ± band
+              {forecast?.modelRmse ? ` · RMSE ฿${forecast.modelRmse}` : ''}
+            </p>
+            <ResponsiveContainer width="100%" height={260}>
               <ComposedChart data={chartData} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
+                <defs>
+                  <linearGradient id="forecastBand" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%"  stopColor="#f59e0b" stopOpacity={0.25} />
+                    <stop offset="95%" stopColor="#f59e0b" stopOpacity={0.05} />
+                  </linearGradient>
+                </defs>
                 <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
                 <XAxis dataKey="date" tick={{ fontSize: 10 }} interval="preserveStartEnd" />
                 <YAxis tick={{ fontSize: 10 }} tickFormatter={v => `฿${v}`} domain={['auto', 'auto']} />
                 <Tooltip content={<ChartTooltip />} />
                 <Legend wrapperStyle={{ fontSize: 11 }} />
-                {/* Price band */}
+                {/* Actual price band (high fills green, low fills white to mask) */}
                 <Area type="monotone" dataKey="high" name="High" stroke="none" fill="#bbf7d0" fillOpacity={0.6} legendType="none" />
-                <Area type="monotone" dataKey="low"  name="Low"  stroke="none" fill="#f5f5f0" fillOpacity={1}   legendType="none" />
+                <Area type="monotone" dataKey="low"  name="Low"  stroke="none" fill="#f9fafb" fillOpacity={1}   legendType="none" />
+                {/* Forecast confidence band */}
+                <Area type="monotone" dataKey="forecastBandHigh" name="F.High" stroke="none"
+                  fill="url(#forecastBand)" fillOpacity={1} legendType="none" connectNulls={false} />
+                <Area type="monotone" dataKey="forecastBandLow"  name="F.Low"  stroke="none"
+                  fill="#f9fafb" fillOpacity={1} legendType="none" connectNulls={false} />
                 {/* Midpoint */}
                 <Line type="monotone" dataKey="mid" name="Mid" stroke="#7d5c37" strokeWidth={2} dot={false} connectNulls={false} />
                 {/* MA7 */}
                 <Line type="monotone" dataKey="ma7" name="MA7" stroke="#f59e0b" strokeWidth={1.5} dot={false} connectNulls />
-                {/* Forecast */}
-                <Line type="monotone" dataKey="forecastMid" name="Forecast" stroke="#7d5c37"
-                  strokeWidth={2} strokeDasharray="5 4" dot={{ r: 3, fill: '#fff', stroke: '#7d5c37' }} connectNulls={false} />
+                {/* Forecast centre line */}
+                <Line type="monotone" dataKey="forecastMid" name="Forecast" stroke="#d97706"
+                  strokeWidth={2} strokeDasharray="5 4"
+                  dot={{ r: 3, fill: '#fff', stroke: '#d97706' }} connectNulls={false} />
                 {records.length > 0 && (
                   <ReferenceLine x={fmtDate(records[records.length - 1].recorded_date)}
                     stroke="#d1d5db" strokeDasharray="4 2"
-                    label={{ value: 'Latest', fontSize: 9, fill: '#9ca3af', position: 'top' }} />
+                    label={{ value: 'Today', fontSize: 9, fill: '#9ca3af', position: 'top' }} />
                 )}
               </ComposedChart>
             </ResponsiveContainer>
@@ -307,8 +333,15 @@ export default function PriceTracker() {
             <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 space-y-3">
               <div className="flex items-center justify-between flex-wrap gap-2">
                 <div>
-                  <h3 className="text-sm font-bold text-gray-700">Forecast Accuracy</h3>
-                  <p className="text-xs text-gray-400">Forecast trained on older data, tested on recent actuals</p>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h3 className="text-sm font-bold text-gray-700">Forecast Accuracy</h3>
+                    {backtest.modelName && backtest.modelName !== '-' && (
+                      <span className="text-xs bg-mushroom-100 text-mushroom-700 font-semibold px-2 py-0.5 rounded-full">
+                        {backtest.modelName}
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-xs text-gray-400">Trained on historical data, tested on recent actuals</p>
                 </div>
                 <div className="flex gap-1.5">
                   {[7, 14, 30].map(h => (
