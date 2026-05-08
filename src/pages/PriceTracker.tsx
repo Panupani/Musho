@@ -125,7 +125,7 @@ export default function PriceTracker() {
   if (lastActualIdx >= 0 && lastActualIdx + 1 < (chartData.length)) {
     chartData[lastActualIdx + 1] = {
       ...chartData[lastActualIdx + 1],
-      forecastMid: chartData[lastActualIdx].mid,
+      forecastMid: (chartData[lastActualIdx] as { mid?: number }).mid,
     };
   }
 
