@@ -43,93 +43,94 @@ export default function Reports() {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-2xl font-bold text-gray-800">Annual Report {year}</h2>
-        <p className="text-gray-500 text-sm">Income vs Expense overview</p>
+        <p className="text-sm font-bold text-mushroom-500 uppercase tracking-widest mb-0.5">รายงานประจำปี</p>
+        <h2 className="text-3xl font-extrabold text-gray-900">{year}</h2>
       </div>
 
       {error && (
-        <div className="bg-red-50 border border-red-200 text-red-700 rounded-xl p-4">
+        <div className="bg-red-50 border-2 border-red-200 text-red-700 rounded-2xl p-4 font-medium">
           ⚠️ {error}
         </div>
       )}
 
-      {/* Year totals */}
-      {!loading && (
-        <div className="grid grid-cols-3 gap-3">
-          <div className="bg-green-50 border-2 border-green-200 rounded-2xl p-4 text-center">
-            <p className="text-xs text-green-600 font-medium mb-1">Year Income</p>
-            <p className="text-base font-bold text-green-700">{fmt(totalIncome)}</p>
-          </div>
-          <div className="bg-red-50 border-2 border-red-200 rounded-2xl p-4 text-center">
-            <p className="text-xs text-red-600 font-medium mb-1">Year Expense</p>
-            <p className="text-base font-bold text-red-700">{fmt(totalExpense)}</p>
-          </div>
-          <div className={`border-2 rounded-2xl p-4 text-center ${
-            totalProfit >= 0
-              ? 'bg-blue-50 border-blue-200'
-              : 'bg-orange-50 border-orange-200'
-          }`}>
-            <p className={`text-xs font-medium mb-1 ${totalProfit >= 0 ? 'text-blue-600' : 'text-orange-600'}`}>
-              Net Profit
+      {/* Year totals — large, clear */}
+      {loading ? (
+        <div className="space-y-3">{[1,2,3].map(i => <div key={i} className="rounded-2xl bg-gray-100 animate-pulse h-24" />)}</div>
+      ) : (
+        <div className="space-y-3">
+          {/* Net profit hero */}
+          <div className={`rounded-3xl p-5 text-white shadow-lg ${totalProfit >= 0 ? 'bg-mushroom-700' : 'bg-orange-600'}`}>
+            <p className="text-sm font-bold opacity-75 mb-1">กำไรสุทธิทั้งปี</p>
+            <p className="text-4xl font-extrabold tracking-tight">
+              {totalProfit >= 0 ? '+' : ''}{fmt(totalProfit)}
             </p>
-            <p className={`text-base font-bold ${totalProfit >= 0 ? 'text-blue-700' : 'text-orange-700'}`}>
-              {fmt(totalProfit)}
-            </p>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="bg-green-50 border-2 border-green-200 rounded-2xl p-4">
+              <p className="text-sm font-bold text-green-600 mb-1">📈 รายรับทั้งปี</p>
+              <p className="text-2xl font-extrabold text-green-700">{fmt(totalIncome)}</p>
+            </div>
+            <div className="bg-red-50 border-2 border-red-200 rounded-2xl p-4">
+              <p className="text-sm font-bold text-red-600 mb-1">📉 รายจ่ายทั้งปี</p>
+              <p className="text-2xl font-extrabold text-red-700">{fmt(totalExpense)}</p>
+            </div>
           </div>
         </div>
       )}
 
       {/* Bar chart */}
       <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
-        <h3 className="text-base font-semibold text-gray-700 mb-4">Monthly Income vs Expense</h3>
+        <h3 className="text-base font-bold text-gray-800 mb-4">รายรับ vs รายจ่าย รายเดือน</h3>
         {loading ? (
           <div className="h-56 bg-gray-100 animate-pulse rounded-xl" />
         ) : (
-          <ResponsiveContainer width="100%" height={260}>
+          <ResponsiveContainer width="100%" height={280}>
             <BarChart data={data} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-              <XAxis dataKey="month" tick={{ fontSize: 11 }} />
+              <XAxis dataKey="month" tick={{ fontSize: 12, fontWeight: 600 }} />
               <YAxis tick={{ fontSize: 11 }} tickFormatter={v => `฿${(v/1000).toFixed(0)}k`} />
               <Tooltip
                 formatter={(value, name) => [
                   `฿${Number(value).toLocaleString('th-TH')}`,
-                  String(name).charAt(0).toUpperCase() + String(name).slice(1),
+                  name === 'income' ? 'รายรับ' : 'รายจ่าย',
                 ]}
+                contentStyle={{ fontSize: 14, borderRadius: 12 }}
               />
-              <Legend wrapperStyle={{ fontSize: 12 }} />
-              <Bar dataKey="income"  name="Income"  fill="#4ade80" radius={[4,4,0,0]} />
-              <Bar dataKey="expense" name="Expense" fill="#f87171" radius={[4,4,0,0]} />
+              <Legend
+                wrapperStyle={{ fontSize: 14, fontWeight: 600 }}
+                formatter={v => v === 'income' ? 'รายรับ' : 'รายจ่าย'}
+              />
+              <Bar dataKey="income"  name="income"  fill="#22c55e" radius={[6,6,0,0]} />
+              <Bar dataKey="expense" name="expense" fill="#ef4444" radius={[6,6,0,0]} />
             </BarChart>
           </ResponsiveContainer>
         )}
       </div>
 
-      {/* Profit line */}
+      {/* Monthly profit bars */}
       <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
-        <h3 className="text-base font-semibold text-gray-700 mb-3">Monthly Net Profit</h3>
+        <h3 className="text-base font-bold text-gray-800 mb-4">กำไรสุทธิรายเดือน</h3>
         {loading ? (
           <div className="h-40 bg-gray-100 animate-pulse rounded-xl" />
         ) : (
-          <div className="space-y-2">
+          <div className="space-y-3">
             {data.map(d => (
               <div key={d.month} className="flex items-center gap-3">
-                <span className="text-xs font-medium text-gray-500 w-8">{d.month}</span>
-                <div className="flex-1 bg-gray-100 rounded-full h-6 overflow-hidden">
-                  {d.income + d.expense > 0 && (
+                <span className="text-sm font-bold text-gray-600 w-10 flex-shrink-0">{d.month}</span>
+                <div className="flex-1 bg-gray-100 rounded-xl h-9 overflow-hidden">
+                  {d.income + d.expense > 0 ? (
                     <div
-                      className={`h-full rounded-full flex items-center px-2 text-xs font-bold text-white transition-all ${
-                        d.profit >= 0 ? 'bg-blue-400' : 'bg-orange-400'
+                      className={`h-full rounded-xl flex items-center px-3 text-sm font-bold text-white transition-all ${
+                        d.profit >= 0 ? 'bg-mushroom-600' : 'bg-orange-500'
                       }`}
                       style={{
-                        width: `${Math.min(100, Math.abs(d.profit) / Math.max(...data.map(x => Math.abs(x.profit)), 1) * 100)}%`,
-                        minWidth: d.profit !== 0 ? '2rem' : 0,
+                        width: `${Math.max(8, Math.min(100, Math.abs(d.profit) / Math.max(...data.map(x => Math.abs(x.profit)), 1) * 100))}%`,
                       }}
                     >
                       {fmt(d.profit)}
                     </div>
-                  )}
-                  {d.income === 0 && d.expense === 0 && (
-                    <span className="text-xs text-gray-400 px-2 leading-6 block">—</span>
+                  ) : (
+                    <span className="text-sm text-gray-400 px-3 leading-9 block">—</span>
                   )}
                 </div>
               </div>

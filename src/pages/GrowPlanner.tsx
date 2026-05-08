@@ -5,6 +5,7 @@ import { getPlans, savePlan, deletePlan, buildTimeline, planSummary, getSteps } 
 import type { GrowPlan } from '../types/grow';
 import StepEditor from '../components/StepEditor';
 import OptimizerTab from '../components/OptimizerTab';
+import { useForecastPrice } from '../lib/useForecastPrice';
 
 // ── helpers ────────────────────────────────────────────────────────────────────
 function fmt(d: Date) { return format(d, 'dd MMM yyyy'); }
@@ -185,6 +186,7 @@ export default function GrowPlanner() {
   const [showEditor, setShowEditor] = useState(false);
   const [stepVer, setStepVer]       = useState(0); // bumped after step edits
 
+  const forecastPrice = useForecastPrice();
   const totalDays = getSteps().reduce((s, step) => s + step.durationDays, 0);
 
   function onStepsSaved() {
@@ -192,11 +194,17 @@ export default function GrowPlanner() {
     setPlans([...getPlans()]); // refresh plan timelines
   }
 
-  const [label,      setLabel]      = useState('');
-  const [startDate,  setStartDate]  = useState(format(new Date(), 'yyyy-MM-dd'));
-  const [bags,       setBags]       = useState('50');
-  const [pricePerKg, setPricePerKg] = useState('120');
-  const [formError,  setFormError]  = useState('');
+  const [label,            setLabel]            = useState('');
+  const [startDate,        setStartDate]        = useState(format(new Date(), 'yyyy-MM-dd'));
+  const [bags,             setBags]             = useState('50');
+  const [pricePerKg,       setPricePerKg]       = useState('');
+  const [userEditedPrice,  setUserEditedPrice]  = useState(false);
+  const [formError,        setFormError]        = useState('');
+
+  // pre-fill price from forecast once loaded
+  if (!forecastPrice.loading && !userEditedPrice && !pricePerKg) {
+    setPricePerKg(String(forecastPrice.mid));
+  }
 
   function handleAdd() {
     const b  = parseInt(bags);
@@ -211,6 +219,8 @@ export default function GrowPlanner() {
     setFormError('');
     setLabel('');
     setBags('50');
+    setPricePerKg('');
+    setUserEditedPrice(false);
   }
 
   function handleDelete(id: string) {
@@ -255,7 +265,9 @@ export default function GrowPlanner() {
       </div>
 
       {/* Optimizer tab — key forces remount when steps change */}
-      {tab === 'optimizer' && <OptimizerTab key={stepVer} />}
+      {tab === 'optimizer' && (
+        <OptimizerTab key={stepVer} forecastPrice={forecastPrice.loading ? undefined : forecastPrice} />
+      )}
 
       {/* Plans tab */}
       {tab === 'plans' && (<>
@@ -335,13 +347,20 @@ export default function GrowPlanner() {
           </div>
 
           <div>
-            <label className="block text-sm font-semibold text-gray-600 mb-1">Sale Price per kg (฿)</label>
+            <div className="flex items-center justify-between mb-1">
+              <label className="text-sm font-semibold text-gray-600">Sale Price per kg (฿)</label>
+              {!forecastPrice.loading && (
+                <span className="text-xs text-mushroom-600 bg-mushroom-50 border border-mushroom-200 rounded-full px-2 py-0.5 font-semibold">
+                  📈 {forecastPrice.low}–{forecastPrice.high} forecast
+                </span>
+              )}
+            </div>
             <input
               type="number"
               inputMode="numeric"
               min="0"
               value={pricePerKg}
-              onChange={e => setPricePerKg(e.target.value)}
+              onChange={e => { setUserEditedPrice(true); setPricePerKg(e.target.value); }}
               className="w-full border-2 border-gray-200 rounded-xl px-3 py-3 text-sm focus:outline-none focus:border-mushroom-500"
             />
           </div>
@@ -352,7 +371,7 @@ export default function GrowPlanner() {
 
           <div className="flex gap-3">
             <button
-              onClick={() => { setShowForm(false); setFormError(''); }}
+              onClick={() => { setShowForm(false); setFormError(''); setUserEditedPrice(false); setPricePerKg(''); }}
               className="flex-1 py-3 rounded-xl border-2 border-gray-200 text-gray-600 font-semibold hover:bg-gray-50"
             >
               Cancel

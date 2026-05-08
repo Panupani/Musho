@@ -5,8 +5,8 @@ import {
   Tooltip, ResponsiveContainer, ReferenceLine, Legend,
 } from 'recharts';
 import { Plus, Trash2, TrendingUp, TrendingDown, Minus, ExternalLink } from 'lucide-react';
-import { fetchPrices, addPrice, deletePrice, buildForecast } from '../lib/prices';
-import type { PriceRecord, PriceForecast } from '../lib/prices';
+import { fetchPrices, addPrice, deletePrice, buildForecast, buildBacktest } from '../lib/prices';
+import type { PriceRecord, PriceForecast, BacktestResult } from '../lib/prices';
 
 // ── constants ─────────────────────────────────────────────────────────────────
 const TALAADTHAI_URL = 'https://talaadthai.com/products/jelly-ear-mushroom-9600-2451';
@@ -47,6 +47,8 @@ export default function PriceTracker() {
 
   const [records,  setRecords]  = useState<PriceRecord[]>([]);
   const [forecast, setForecast] = useState<PriceForecast | null>(null);
+  const [backtest, setBacktest] = useState<BacktestResult | null>(null);
+  const [btHorizon, setBtHorizon] = useState(14);
   const [loading,  setLoading]  = useState(true);
   const [error,    setError]    = useState('');
   const [days,     setDays]     = useState(90);
@@ -61,6 +63,9 @@ export default function PriceTracker() {
   const [showForm,  setShowForm]  = useState(false);
 
   useEffect(() => { load(); }, [days]);
+  useEffect(() => {
+    if (records.length) setBacktest(buildBacktest(records, btHorizon));
+  }, [btHorizon, records]);
 
   async function load() {
     setLoading(true); setError('');
@@ -68,6 +73,7 @@ export default function PriceTracker() {
       const data = await fetchPrices(days);
       setRecords(data);
       setForecast(buildForecast(data));
+      setBacktest(buildBacktest(data, btHorizon));
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Failed to load');
     } finally {
@@ -295,6 +301,76 @@ export default function PriceTracker() {
               </ComposedChart>
             </ResponsiveContainer>
           </div>
+
+          {/* Forecast Accuracy */}
+          {backtest && backtest.points.length > 0 && (
+            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 space-y-3">
+              <div className="flex items-center justify-between flex-wrap gap-2">
+                <div>
+                  <h3 className="text-sm font-bold text-gray-700">Forecast Accuracy</h3>
+                  <p className="text-xs text-gray-400">Forecast trained on older data, tested on recent actuals</p>
+                </div>
+                <div className="flex gap-1.5">
+                  {[7, 14, 30].map(h => (
+                    <button key={h} onClick={() => setBtHorizon(h)}
+                      className={`px-3 py-1 rounded-lg text-xs font-semibold border-2 transition-colors ${
+                        btHorizon === h ? 'bg-mushroom-600 text-white border-mushroom-600'
+                                       : 'bg-white text-gray-500 border-gray-200 hover:border-mushroom-300'
+                      }`}>{h}d</button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Metrics row */}
+              <div className="grid grid-cols-3 gap-2">
+                {[
+                  { label: 'MAPE', value: `${backtest.mape}%`, hint: 'avg % error', good: backtest.mape < 5, warn: backtest.mape > 15 },
+                  { label: 'MAE',  value: `฿${backtest.mae}`, hint: 'avg ฿ error', good: backtest.mae < 5,  warn: backtest.mae  > 20 },
+                  { label: 'RMSE', value: `฿${backtest.rmse}`,hint: 'std error',   good: backtest.rmse < 5, warn: backtest.rmse > 20 },
+                ].map(m => (
+                  <div key={m.label}
+                    className={`rounded-xl p-3 border-2 text-center ${
+                      m.good ? 'bg-green-50 border-green-200' :
+                      m.warn ? 'bg-red-50 border-red-200' :
+                               'bg-amber-50 border-amber-200'
+                    }`}>
+                    <p className={`text-xs font-semibold ${
+                      m.good ? 'text-green-600' : m.warn ? 'text-red-600' : 'text-amber-600'
+                    }`}>{m.label}</p>
+                    <p className={`text-lg font-bold ${
+                      m.good ? 'text-green-700' : m.warn ? 'text-red-700' : 'text-amber-700'
+                    }`}>{m.value}</p>
+                    <p className={`text-xs ${
+                      m.good ? 'text-green-500' : m.warn ? 'text-red-500' : 'text-amber-500'
+                    }`}>{m.hint}</p>
+                  </div>
+                ))}
+              </div>
+
+              {/* Per-day comparison */}
+              <div className="space-y-1.5 max-h-52 overflow-y-auto">
+                <div className="grid grid-cols-4 gap-2 px-2 text-xs font-semibold text-gray-400 uppercase">
+                  <span>Date</span><span className="text-right">Actual</span>
+                  <span className="text-right">Forecast</span><span className="text-right">Error</span>
+                </div>
+                {[...backtest.points].reverse().map(p => (
+                  <div key={p.date} className="grid grid-cols-4 gap-2 bg-gray-50 rounded-xl px-3 py-2 text-sm">
+                    <span className="text-gray-500 text-xs">{format(parseISO(p.date), 'dd MMM')}</span>
+                    <span className="text-right font-semibold text-gray-800">{thb(p.actual)}</span>
+                    <span className="text-right font-semibold text-mushroom-700">{thb(p.forecast)}</span>
+                    <span className={`text-right font-bold text-xs ${
+                      Math.abs(p.errorPct) < 5  ? 'text-green-600' :
+                      Math.abs(p.errorPct) < 15 ? 'text-amber-600' : 'text-red-600'
+                    }`}>{p.errorPct > 0 ? '+' : ''}{p.errorPct}%</span>
+                  </div>
+                ))}
+              </div>
+
+              <p className="text-xs text-gray-400 text-center">
+                Green &lt;5% · Amber 5–15% · Red &gt;15% error
+              </p>
+            </div>
+          )}
 
           {/* History list */}
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">

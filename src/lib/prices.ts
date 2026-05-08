@@ -48,6 +48,61 @@ export async function deletePrice(id: string): Promise<void> {
   if (error) throw error;
 }
 
+// ── Backtest ───────────────────────────────────────────────────────────────────
+
+export interface BacktestPoint {
+  date: string;
+  actual: number;
+  forecast: number;
+  errorPct: number;
+}
+
+export interface BacktestResult {
+  horizon: number;
+  points: BacktestPoint[];
+  mae: number;
+  mape: number;
+  rmse: number;
+}
+
+export function buildBacktest(records: PriceRecord[], horizon = 14): BacktestResult {
+  const empty: BacktestResult = { horizon, points: [], mae: 0, mape: 0, rmse: 0 };
+  if (records.length <= horizon + 2) return empty;
+
+  const cutoff = records.length - horizon;
+  const train  = records.slice(0, cutoff);
+  const test   = records.slice(cutoff);
+
+  const trainMids = train.map(r => (r.price_low + r.price_high) / 2);
+  const trainXs   = train.map((_, i) => i);
+  const { slope, intercept } = linReg(trainXs, trainMids);
+
+  const points: BacktestPoint[] = test.map((r, i) => {
+    const actual   = (r.price_low + r.price_high) / 2;
+    const forecast = Math.max(1, slope * (cutoff + i) + intercept);
+    const errorPct = ((forecast - actual) / actual) * 100;
+    return {
+      date:     r.recorded_date,
+      actual:   Math.round(actual   * 100) / 100,
+      forecast: Math.round(forecast * 100) / 100,
+      errorPct: Math.round(errorPct * 10)  / 10,
+    };
+  });
+
+  const n    = points.length;
+  const mae  = points.reduce((s, p) => s + Math.abs(p.forecast - p.actual), 0) / n;
+  const mape = points.reduce((s, p) => s + Math.abs(p.errorPct),            0) / n;
+  const rmse = Math.sqrt(points.reduce((s, p) => s + (p.forecast - p.actual) ** 2, 0) / n);
+
+  return {
+    horizon,
+    points,
+    mae:  Math.round(mae  * 100) / 100,
+    mape: Math.round(mape * 10)  / 10,
+    rmse: Math.round(rmse * 100) / 100,
+  };
+}
+
 // ── Forecast ───────────────────────────────────────────────────────────────────
 
 export interface ForecastPoint {

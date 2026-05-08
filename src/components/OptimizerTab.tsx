@@ -92,17 +92,29 @@ function GanttChart({ result }: { result: OptimizeResult }) {
   );
 }
 
+interface Props {
+  forecastPrice?: { mid: number; low: number; high: number };
+}
+
 // ── main component ────────────────────────────────────────────────────────────
-export default function OptimizerTab() {
+export default function OptimizerTab({ forecastPrice }: Props) {
   const today = format(new Date(), 'yyyy-MM-dd');
   const totalCycleDays = getSteps().reduce((s, st) => s + st.durationDays, 0);
 
+  const initPrice = forecastPrice?.mid ?? 120;
+
   const [numHouses,  setNumHouses]  = useState(3);
   const [bags,       setBags]       = useState(100);
-  const [pricePerKg, setPricePerKg] = useState(120);
+  const [pricePerKg, setPricePerKg] = useState(initPrice);
   const [startDate,  setStartDate]  = useState(today);
   const [simWeeks,   setSimWeeks]   = useState(26);
   const [ran,        setRan]        = useState(false);
+
+  // sync forecast price in when it loads (only if user hasn't touched the field)
+  const [userEditedPrice, setUserEditedPrice] = useState(false);
+  if (forecastPrice && !userEditedPrice && forecastPrice.mid !== initPrice) {
+    setPricePerKg(forecastPrice.mid);
+  }
 
   const result = useMemo<OptimizeResult | null>(() => {
     if (!ran) return null;
@@ -139,11 +151,18 @@ export default function OptimizerTab() {
             />
           </div>
           <div>
-            <label className="block text-xs font-semibold text-gray-500 mb-1">Price per kg (฿)</label>
+            <div className="flex items-center justify-between mb-1">
+              <label className="text-xs font-semibold text-gray-500">Price per kg (฿)</label>
+              {forecastPrice && (
+                <span className="text-xs text-mushroom-600 bg-mushroom-50 border border-mushroom-200 rounded-full px-2 py-0.5 font-semibold">
+                  📈 {forecastPrice.low}–{forecastPrice.high} forecast
+                </span>
+              )}
+            </div>
             <input
               type="number" inputMode="numeric" min="1"
               value={pricePerKg}
-              onChange={e => setPricePerKg(Math.max(1, parseInt(e.target.value) || 1))}
+              onChange={e => { setUserEditedPrice(true); setPricePerKg(Math.max(1, parseInt(e.target.value) || 1)); }}
               className="w-full border-2 border-gray-200 rounded-xl px-3 py-3 text-lg font-bold text-center focus:outline-none focus:border-mushroom-500"
             />
           </div>

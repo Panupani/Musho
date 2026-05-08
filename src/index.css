@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;600;700;800&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -8,11 +8,20 @@
   box-sizing: border-box;
 }
 
+html {
+  /* 17px base — slightly larger than browser default for 40+ readability */
+  font-size: 17px;
+  -webkit-text-size-adjust: 100%;
+  scroll-behavior: smooth;
+}
+
 body {
   margin: 0;
-  font-family: 'Inter', system-ui, sans-serif;
+  font-family: 'Sarabun', 'Inter', system-ui, sans-serif;
   background-color: #f5f5f0;
   color: #1a1a1a;
+  /* prevent content jumping when scrollbar appears */
+  overflow-y: scroll;
 }
 
 #root {
@@ -22,3 +31,25 @@ body {
   border: none;
   max-width: 100%;
 }
+
+/* ── Accessibility: ensure every tap target meets 52px minimum ──────────────── */
+button, a, [role="button"] {
+  min-height: 44px;
+  cursor: pointer;
+}
+
+/* ── Input base: prevent iOS auto-zoom (font-size must be ≥ 16px) ──────────── */
+input, select, textarea {
+  font-size: 1rem;
+  font-family: inherit;
+}
+
+/* ── Smooth transitions for interactive elements ─────────────────────────────── */
+button {
+  transition: opacity 0.15s ease, background-color 0.15s ease, color 0.15s ease;
+}
+
+/* ── Scrollbar styling for content lists ─────────────────────────────────────── */
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #d9c8b1; border-radius: 4px; }

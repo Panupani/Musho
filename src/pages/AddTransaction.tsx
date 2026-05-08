@@ -63,101 +63,113 @@ export default function AddTransaction() {
 
   if (success) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4 text-green-600">
-        <CheckCircle size={72} />
-        <p className="text-2xl font-bold">Saved!</p>
+      <div className="flex flex-col items-center justify-center min-h-[65vh] gap-5">
+        <div className={`w-24 h-24 rounded-full flex items-center justify-center shadow-lg ${
+          type === 'income' ? 'bg-green-100' : 'bg-red-100'
+        }`}>
+          <CheckCircle size={56} className={type === 'income' ? 'text-green-600' : 'text-red-600'} />
+        </div>
+        <p className="text-3xl font-extrabold text-gray-800">บันทึกแล้ว!</p>
+        <p className="text-base text-gray-500">กลับสู่หน้าหลัก…</p>
       </div>
     );
   }
 
   return (
-    <div className="max-w-lg mx-auto space-y-6">
-      <h2 className="text-2xl font-bold text-gray-800">Add New Record</h2>
+    <div className="max-w-lg mx-auto space-y-5">
+      <h2 className="text-2xl font-extrabold text-gray-900">บันทึกรายการ</h2>
 
-      {/* Type Toggle */}
-      <div className="flex rounded-2xl overflow-hidden border-2 border-gray-200 bg-white">
+      {/* Type Toggle — very large, thumb-friendly */}
+      <div className="grid grid-cols-2 gap-3">
         <button
           type="button"
           onClick={() => switchType('income')}
-          className={`flex-1 py-4 text-lg font-semibold transition-colors ${
+          className={`py-5 rounded-2xl text-lg font-bold transition-all border-3 ${
             type === 'income'
-              ? 'bg-green-500 text-white'
-              : 'bg-white text-gray-500 hover:bg-green-50'
+              ? 'bg-green-500 text-white shadow-md border-green-500'
+              : 'bg-white text-gray-500 border-2 border-gray-200 hover:border-green-300 hover:bg-green-50'
           }`}
         >
-          📈 Income
+          📈 รายรับ
         </button>
         <button
           type="button"
           onClick={() => switchType('expense')}
-          className={`flex-1 py-4 text-lg font-semibold transition-colors ${
+          className={`py-5 rounded-2xl text-lg font-bold transition-all ${
             type === 'expense'
-              ? 'bg-red-500 text-white'
-              : 'bg-white text-gray-500 hover:bg-red-50'
+              ? 'bg-red-500 text-white shadow-md border-2 border-red-500'
+              : 'bg-white text-gray-500 border-2 border-gray-200 hover:border-red-300 hover:bg-red-50'
           }`}
         >
-          🛒 Expense
+          🛒 รายจ่าย
         </button>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-5">
-        {/* Amount */}
-        <div>
-          <label className="block text-base font-semibold text-gray-700 mb-2">
-            Amount (฿) <span className="text-red-500">*</span>
+        {/* Amount — hero input, very large */}
+        <div className={`rounded-2xl border-3 p-4 ${
+          type === 'income' ? 'border-2 border-green-200 bg-green-50' : 'border-2 border-red-200 bg-red-50'
+        }`}>
+          <label className={`block text-sm font-bold mb-2 ${type === 'income' ? 'text-green-700' : 'text-red-700'}`}>
+            จำนวนเงิน (฿) <span className="text-red-500">*</span>
           </label>
-          <input
-            type="number"
-            inputMode="decimal"
-            step="0.01"
-            min="0"
-            placeholder="0.00"
-            value={amount}
-            onChange={e => setAmount(e.target.value)}
-            className="w-full border-2 border-gray-200 rounded-xl px-4 py-4 text-2xl font-bold text-gray-800 focus:outline-none focus:border-mushroom-500 transition-colors"
-          />
+          <div className="flex items-center gap-2">
+            <span className={`text-3xl font-extrabold ${type === 'income' ? 'text-green-600' : 'text-red-600'}`}>฿</span>
+            <input
+              type="number"
+              inputMode="decimal"
+              step="0.01"
+              min="0"
+              placeholder="0"
+              value={amount}
+              onChange={e => setAmount(e.target.value)}
+              className={`flex-1 bg-transparent border-none outline-none text-4xl font-extrabold tracking-tight ${
+                type === 'income' ? 'text-green-700' : 'text-red-700'
+              } placeholder:text-gray-300`}
+            />
+          </div>
         </div>
 
-        {/* Category */}
+        {/* Category — 2-column grid, large tap targets */}
         <div>
-          <div className="flex items-center justify-between mb-2">
-            <label className="text-base font-semibold text-gray-700">
-              Category <span className="text-red-500">*</span>
+          <div className="flex items-center justify-between mb-3">
+            <label className="text-base font-bold text-gray-800">
+              หมวดหมู่ <span className="text-red-500">*</span>
             </label>
             <button
               type="button"
               onClick={() => setShowManager(true)}
-              className="flex items-center gap-1 text-sm text-mushroom-600 font-medium hover:text-mushroom-700"
+              className="flex items-center gap-1.5 text-sm text-mushroom-600 font-semibold bg-mushroom-50 px-3 py-2 rounded-xl hover:bg-mushroom-100 transition-colors"
             >
               <Settings2 size={15} />
-              Manage
+              จัดการ
             </button>
           </div>
 
           {categories.length === 0 ? (
-            <div className="text-center py-6 border-2 border-dashed border-gray-200 rounded-xl text-gray-400 text-sm">
-              No categories yet.{' '}
+            <div className="text-center py-8 border-2 border-dashed border-gray-200 rounded-2xl text-gray-400">
+              <p className="text-base font-medium">ยังไม่มีหมวดหมู่</p>
               <button
                 type="button"
                 onClick={() => setShowManager(true)}
-                className="text-mushroom-600 font-medium underline"
+                className="text-mushroom-600 font-semibold underline mt-1 text-base"
               >
-                Add one
+                เพิ่มหมวดหมู่
               </button>
             </div>
           ) : (
-            <div className="grid grid-cols-1 gap-2">
+            <div className="grid grid-cols-2 gap-2.5">
               {categories.map(cat => (
                 <button
                   key={cat}
                   type="button"
                   onClick={() => setCategory(cat)}
-                  className={`text-left px-4 py-3 rounded-xl border-2 text-sm font-medium transition-colors ${
+                  className={`px-4 py-4 rounded-2xl border-2 text-base font-semibold transition-all text-left ${
                     category === cat
                       ? type === 'income'
-                        ? 'border-green-500 bg-green-50 text-green-700'
-                        : 'border-red-500 bg-red-50 text-red-700'
-                      : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300'
+                        ? 'border-green-500 bg-green-500 text-white shadow-md'
+                        : 'border-red-500 bg-red-500 text-white shadow-md'
+                      : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300 hover:bg-gray-50'
                   }`}
                 >
                   {cat}
@@ -167,51 +179,51 @@ export default function AddTransaction() {
           )}
         </div>
 
-        {/* Description */}
+        {/* Note */}
         <div>
-          <label className="block text-base font-semibold text-gray-700 mb-2">
-            Note (optional)
+          <label className="block text-base font-bold text-gray-800 mb-2">
+            หมายเหตุ (ไม่บังคับ)
           </label>
           <input
             type="text"
-            placeholder="e.g. Sold 5 kg oyster mushroom to market"
+            placeholder="เช่น ขายเห็ดหูหนู 5 กก."
             value={description}
             onChange={e => setDescription(e.target.value)}
-            className="w-full border-2 border-gray-200 rounded-xl px-4 py-3 text-base text-gray-800 focus:outline-none focus:border-mushroom-500 transition-colors"
+            className="w-full border-2 border-gray-200 rounded-2xl px-4 py-4 text-base text-gray-800 focus:outline-none focus:border-mushroom-500 transition-colors bg-white"
           />
         </div>
 
         {/* Date */}
         <div>
-          <label className="block text-base font-semibold text-gray-700 mb-2">
-            Date <span className="text-red-500">*</span>
+          <label className="block text-base font-bold text-gray-800 mb-2">
+            วันที่ <span className="text-red-500">*</span>
           </label>
           <input
             type="date"
             value={date}
             onChange={e => setDate(e.target.value)}
-            className="w-full border-2 border-gray-200 rounded-xl px-4 py-3 text-base text-gray-800 focus:outline-none focus:border-mushroom-500 transition-colors"
+            className="w-full border-2 border-gray-200 rounded-2xl px-4 py-4 text-base text-gray-800 focus:outline-none focus:border-mushroom-500 transition-colors bg-white"
           />
         </div>
 
         {/* Error */}
         {error && (
-          <div className="bg-red-50 border border-red-200 text-red-700 rounded-xl p-3 text-sm">
+          <div className="bg-red-50 border-2 border-red-200 text-red-700 rounded-2xl p-4 text-base font-medium">
             ⚠️ {error}
           </div>
         )}
 
-        {/* Submit */}
+        {/* Submit — very large, clear CTA */}
         <button
           type="submit"
           disabled={loading}
-          className={`w-full py-5 rounded-2xl text-xl font-bold text-white transition-all ${
+          className={`w-full py-5 rounded-2xl text-xl font-extrabold text-white transition-all shadow-lg active:scale-[0.98] ${
             type === 'income'
-              ? 'bg-green-500 hover:bg-green-600 active:bg-green-700'
-              : 'bg-red-500 hover:bg-red-600 active:bg-red-700'
-          } disabled:opacity-50 shadow-lg`}
+              ? 'bg-green-500 hover:bg-green-600'
+              : 'bg-red-500 hover:bg-red-600'
+          } disabled:opacity-50`}
         >
-          {loading ? 'Saving…' : `Save ${type === 'income' ? 'Income' : 'Expense'}`}
+          {loading ? 'กำลังบันทึก…' : `💾 บันทึก${type === 'income' ? 'รายรับ' : 'รายจ่าย'}`}
         </button>
       </form>
 
