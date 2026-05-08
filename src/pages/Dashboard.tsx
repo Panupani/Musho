@@ -54,12 +54,16 @@ const PERIODS = [
 ];
 
 export default function Dashboard() {
-  const currentMonth = format(new Date(), 'yyyy-MM');
+  const todayMonth = format(new Date(), 'yyyy-MM');
 
-  // period state
+  // selected month for KPI + transactions
+  const [selectedMonth, setSelectedMonth] = useState(todayMonth);
+  const isCurrentMonth = selectedMonth === todayMonth;
+
+  // period state (for trend chart)
   const [period, setPeriod] = useState(6);
 
-  // current month transactions
+  // transactions for selected month
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [txLoading, setTxLoading]       = useState(true);
 
@@ -77,14 +81,14 @@ export default function Dashboard() {
 
   const [error, setError] = useState('');
 
-  useEffect(() => { loadTransactions(); }, []);
+  useEffect(() => { loadTransactions(); }, [selectedMonth]);
   useEffect(() => { loadTrend(); loadCategories(); }, [period]);
   useEffect(() => { loadPrice(); }, []);
 
   async function loadTransactions() {
     setTxLoading(true);
     try {
-      const data = await fetchTransactions({ month: currentMonth });
+      const data = await fetchTransactions({ month: selectedMonth });
       setTransactions(data);
     } catch (e: unknown) { setError(e instanceof Error ? e.message : 'Error'); }
     finally { setTxLoading(false); }
@@ -151,18 +155,38 @@ export default function Dashboard() {
         <div>
           <p className="text-xs font-bold text-mushroom-500 uppercase tracking-widest">สรุปรายเดือน</p>
           <h2 className="text-2xl font-extrabold text-gray-900 leading-tight mt-0.5">
-            {format(new Date(), 'MMMM yyyy')}
+            {format(new Date(selectedMonth + '-02'), 'MMMM yyyy')}
           </h2>
         </div>
         <span className="text-4xl leading-none">🍄</span>
       </div>
 
-      {/* ── This month KPI hero ── */}
+      {/* ── Month filter ── */}
+      <div className="flex items-center gap-2">
+        <input
+          type="month"
+          value={selectedMonth}
+          onChange={e => setSelectedMonth(e.target.value)}
+          className="flex-1 border-2 border-gray-200 rounded-2xl px-4 py-3.5 text-base font-semibold text-gray-800 focus:outline-none focus:border-mushroom-500 bg-white"
+        />
+        {!isCurrentMonth && (
+          <button
+            onClick={() => setSelectedMonth(todayMonth)}
+            className="flex-shrink-0 bg-mushroom-600 text-white px-4 py-3.5 rounded-2xl text-sm font-bold hover:bg-mushroom-700 transition-colors"
+          >
+            เดือนนี้
+          </button>
+        )}
+      </div>
+
+      {/* ── KPI hero ── */}
       {txLoading ? (
         <div className="rounded-3xl bg-gray-200 animate-pulse h-32" />
       ) : (
         <div className={`rounded-3xl p-5 text-white shadow-lg ${netProfit >= 0 ? 'bg-mushroom-700' : 'bg-red-600'}`}>
-          <p className="text-sm font-semibold opacity-75">กำไรสุทธิเดือนนี้</p>
+          <p className="text-sm font-semibold opacity-75">
+            กำไรสุทธิ{isCurrentMonth ? 'เดือนนี้' : format(new Date(selectedMonth + '-02'), 'MMMM yyyy')}
+          </p>
           <p className="text-5xl font-extrabold tracking-tight mt-1">
             {netProfit >= 0 ? '+' : '-'}{thb(netProfit)}
           </p>
@@ -335,7 +359,9 @@ export default function Dashboard() {
       {/* ── Recent Transactions ── */}
       <div>
         <div className="flex items-center justify-between mb-3">
-          <h3 className="text-lg font-bold text-gray-800">รายการล่าสุด (เดือนนี้)</h3>
+          <h3 className="text-lg font-bold text-gray-800">
+            รายการ{isCurrentMonth ? 'เดือนนี้' : format(new Date(selectedMonth + '-02'), 'MMM yyyy')}
+          </h3>
           {transactions.length > 5 && (
             <span className="text-sm text-mushroom-600 font-semibold">ทั้งหมด {transactions.length} →</span>
           )}
@@ -348,8 +374,12 @@ export default function Dashboard() {
         ) : recent.length === 0 ? (
           <div className="text-center py-12 text-gray-400">
             <p className="text-5xl mb-3">🍄</p>
-            <p className="text-xl font-semibold">ยังไม่มีรายการเดือนนี้</p>
-            <p className="text-base mt-1">กด <strong className="text-mushroom-600">บันทึก</strong> เพื่อเพิ่มรายการ</p>
+            <p className="text-xl font-semibold">ไม่มีรายการในเดือนนี้</p>
+            <p className="text-base mt-1">
+              {isCurrentMonth
+                ? <>กด <strong className="text-mushroom-600">บันทึก</strong> เพื่อเพิ่มรายการ</>
+                : 'ไม่พบรายการในช่วงเวลานี้'}
+            </p>
           </div>
         ) : (
           <div className="space-y-3">
