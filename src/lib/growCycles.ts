@@ -1,10 +1,10 @@
+import { supabase } from './supabase';
 import { WOOD_EAR_STEPS } from '../types/grow';
 import type { GrowPlan, GrowStep } from '../types/grow';
 
-const PLANS_KEY = 'musho_grow_plans_v2';
 const STEPS_KEY = 'musho_grow_steps';
 
-// ── Step settings ──────────────────────────────────────────────────────────────
+// ── Step settings (keep in localStorage — device preference) ──────────────────
 export function getSteps(): GrowStep[] {
   try {
     const raw = localStorage.getItem(STEPS_KEY);
@@ -21,29 +21,49 @@ export function resetSteps(): void {
   localStorage.removeItem(STEPS_KEY);
 }
 
-// ── Plans CRUD ─────────────────────────────────────────────────────────────────
-export function getPlans(): GrowPlan[] {
-  try {
-    const raw = localStorage.getItem(PLANS_KEY);
-    return raw ? (JSON.parse(raw) as GrowPlan[]) : [];
-  } catch {
-    return [];
-  }
-}
+// ── Plans CRUD (Supabase) ─────────────────────────────────────────────────────
 
-export function savePlan(plan: Omit<GrowPlan, 'id' | 'createdAt'>): GrowPlan {
-  const plans = getPlans();
-  const newPlan: GrowPlan = {
-    ...plan,
-    id: crypto.randomUUID(),
-    createdAt: new Date().toISOString(),
+// Map Supabase snake_case row → GrowPlan camelCase
+function rowToPlan(row: Record<string, unknown>): GrowPlan {
+  return {
+    id:          row.id          as string,
+    label:       row.label       as string,
+    startDate:   row.start_date  as string,
+    bags:        row.bags        as number,
+    pricePerKg:  row.price_per_kg as number,
+    createdAt:   row.created_at  as string,
   };
-  localStorage.setItem(PLANS_KEY, JSON.stringify([newPlan, ...plans]));
-  return newPlan;
 }
 
-export function deletePlan(id: string): void {
-  localStorage.setItem(PLANS_KEY, JSON.stringify(getPlans().filter(p => p.id !== id)));
+export async function fetchPlans(): Promise<GrowPlan[]> {
+  const { data, error } = await supabase
+    .from('grow_plans')
+    .select('*')
+    .order('created_at', { ascending: false });
+  if (error) throw error;
+  return (data as Record<string, unknown>[]).map(rowToPlan);
+}
+
+export async function savePlan(
+  plan: Omit<GrowPlan, 'id' | 'createdAt'>,
+): Promise<GrowPlan> {
+  const { data, error } = await supabase
+    .from('grow_plans')
+    .insert([{
+      label:        plan.label,
+      start_date:   plan.startDate,
+      bags:         plan.bags,
+      price_per_kg: plan.pricePerKg,
+    }])
+    .select()
+    .single();
+  if (error) throw error;
+  return rowToPlan(data as Record<string, unknown>);
+}
+
+export async function deletePlan(id: string): Promise<void> {
+  const { error } = await supabase.from('grow_plans').delete().eq('id', id);
+  if (error) throw error;
 }
 
 // ── Timeline calculation ───────────────────────────────────────────────────────

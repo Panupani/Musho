@@ -1,7 +1,7 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { format, parseISO } from 'date-fns';
 import { Plus, Trash2, ChevronDown, ChevronUp, CheckCircle, Loader, Circle, Settings2 } from 'lucide-react';
-import { getPlans, savePlan, deletePlan, buildTimeline, planSummary, getSteps } from '../lib/growCycles';
+import { fetchPlans, savePlan, deletePlan, buildTimeline, planSummary, getSteps } from '../lib/growCycles';
 import type { GrowPlan } from '../types/grow';
 import StepEditor from '../components/StepEditor';
 import OptimizerTab from '../components/OptimizerTab';
@@ -181,7 +181,9 @@ function PlanCard({ plan, onDelete }: { plan: GrowPlan; onDelete: () => void }) 
 // ── Main page ──────────────────────────────────────────────────────────────────
 export default function GrowPlanner() {
   const [tab, setTab]               = useState<'plans' | 'optimizer'>('plans');
-  const [plans, setPlans]           = useState<GrowPlan[]>(() => getPlans());
+  const [plans, setPlans]           = useState<GrowPlan[]>([]);
+  const [plansLoading, setPlansLoading] = useState(true);
+  const [plansError, setPlansError]     = useState('');
   const [showForm, setShowForm]     = useState(false);
   const [showEditor, setShowEditor] = useState(false);
   const [stepVer, setStepVer]       = useState(0); // bumped after step edits
@@ -189,9 +191,22 @@ export default function GrowPlanner() {
   const forecastPrice = useForecastPrice();
   const totalDays = getSteps().reduce((s, step) => s + step.durationDays, 0);
 
+  async function loadPlans() {
+    setPlansLoading(true); setPlansError('');
+    try {
+      setPlans(await fetchPlans());
+    } catch (e: unknown) {
+      setPlansError(e instanceof Error ? e.message : 'Failed to load plans');
+    } finally {
+      setPlansLoading(false);
+    }
+  }
+
+  useEffect(() => { loadPlans(); }, []);
+
   function onStepsSaved() {
     setStepVer(v => v + 1);   // re-mounts OptimizerTab so it reads fresh steps
-    setPlans([...getPlans()]); // refresh plan timelines
+    loadPlans();               // refresh plan timelines
   }
 
   const [label,            setLabel]            = useState('');
@@ -206,27 +221,39 @@ export default function GrowPlanner() {
     setPricePerKg(String(forecastPrice.mid));
   }
 
-  function handleAdd() {
+  const [saving, setSaving] = useState(false);
+
+  async function handleAdd() {
     const b  = parseInt(bags);
     const pp = parseFloat(pricePerKg);
-    if (!startDate)         { setFormError('Please select the date you have your cap.'); return; }
-    if (isNaN(b) || b <= 0) { setFormError('Enter a valid number of bags.'); return; }
+    if (!startDate)           { setFormError('Please select the date you have your cap.'); return; }
+    if (isNaN(b) || b <= 0)   { setFormError('Enter a valid number of bags.'); return; }
     if (isNaN(pp) || pp <= 0) { setFormError('Enter a valid price per kg.'); return; }
 
-    savePlan({ label: label.trim() || `Batch ${plans.length + 1}`, startDate, bags: b, pricePerKg: pp });
-    setPlans(getPlans());
-    setShowForm(false);
-    setFormError('');
-    setLabel('');
-    setBags('50');
-    setPricePerKg('');
-    setUserEditedPrice(false);
+    setSaving(true); setFormError('');
+    try {
+      await savePlan({ label: label.trim() || `Batch ${plans.length + 1}`, startDate, bags: b, pricePerKg: pp });
+      await loadPlans();
+      setShowForm(false);
+      setLabel('');
+      setBags('50');
+      setPricePerKg('');
+      setUserEditedPrice(false);
+    } catch (e: unknown) {
+      setFormError(e instanceof Error ? e.message : 'Failed to save plan');
+    } finally {
+      setSaving(false);
+    }
   }
 
-  function handleDelete(id: string) {
+  async function handleDelete(id: string) {
     if (!confirm('Remove this grow plan?')) return;
-    deletePlan(id);
-    setPlans(getPlans());
+    try {
+      await deletePlan(id);
+      await loadPlans();
+    } catch (e: unknown) {
+      alert(e instanceof Error ? e.message : 'Failed to delete plan');
+    }
   }
 
   return (
@@ -378,16 +405,24 @@ export default function GrowPlanner() {
             </button>
             <button
               onClick={handleAdd}
-              className="flex-1 py-3 rounded-xl bg-mushroom-600 text-white font-bold hover:bg-mushroom-700 transition-colors"
+              disabled={saving}
+              className="flex-1 py-3 rounded-xl bg-mushroom-600 text-white font-bold hover:bg-mushroom-700 transition-colors disabled:opacity-50"
             >
-              Create Plan
+              {saving ? 'Saving…' : 'Create Plan'}
             </button>
           </div>
         </div>
       )}
 
       {/* Plan list */}
-      {plans.length === 0 && !showForm ? (
+      {plansError && (
+        <div className="bg-red-50 border border-red-200 text-red-700 rounded-xl p-4 text-sm">⚠️ {plansError}</div>
+      )}
+      {plansLoading ? (
+        <div className="space-y-4">
+          {[1, 2].map(i => <div key={i} className="h-32 bg-gray-100 rounded-2xl animate-pulse" />)}
+        </div>
+      ) : plans.length === 0 && !showForm ? (
         <div className="text-center py-16 text-gray-400">
           <p className="text-5xl mb-3">👂</p>
           <p className="text-lg font-medium">No plans yet</p>
