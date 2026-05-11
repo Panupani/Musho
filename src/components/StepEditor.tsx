@@ -113,7 +113,21 @@ export default function StepEditor({ onClose, onSave }: Props) {
 
                 {step.yieldPerBagKg !== undefined && (
                   <div>
-                    <label className="block text-xs font-semibold text-gray-500 mb-1">Yield/bag (kg)</label>
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="text-xs font-semibold text-gray-500">Yield/bag (kg)</label>
+                      <button
+                        type="button"
+                        onClick={() => setSteps(prev => prev.map((s, i) => {
+                          if (i !== idx) return s;
+                          const { yieldPerBagKg: _, ...rest } = s;
+                          return rest as GrowStep;
+                        }))}
+                        className="text-xs text-red-400 hover:text-red-600 font-semibold leading-none"
+                        title="Remove yield from this step"
+                      >
+                        ✕ Remove
+                      </button>
+                    </div>
                     <input
                       type="number"
                       inputMode="decimal"
@@ -121,11 +135,24 @@ export default function StepEditor({ onClose, onSave }: Props) {
                       min="0"
                       value={step.yieldPerBagKg}
                       onChange={e => update(idx, 'yieldPerBagKg', e.target.value)}
-                      className="w-full border-2 border-gray-200 rounded-lg px-3 py-2 text-sm font-semibold focus:outline-none focus:border-mushroom-500"
+                      className="w-full border-2 border-green-200 rounded-lg px-3 py-2 text-sm font-semibold focus:outline-none focus:border-green-500"
                     />
                   </div>
                 )}
               </div>
+
+              {/* Add yield button — only shown when this step has no yield yet */}
+              {step.yieldPerBagKg === undefined && (
+                <button
+                  type="button"
+                  onClick={() => setSteps(prev => prev.map((s, i) =>
+                    i === idx ? { ...s, yieldPerBagKg: 0.10 } : s
+                  ))}
+                  className="flex items-center gap-1.5 text-xs text-green-600 font-semibold bg-green-50 border border-green-200 rounded-lg px-3 py-1.5 hover:bg-green-100 transition-colors"
+                >
+                  🌻 Add Yield
+                </button>
+              )}
 
               {/* Default reference */}
               {(() => {
